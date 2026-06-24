@@ -8,7 +8,7 @@
 2. 開好後,直接打開 [`m12-crew-starter/M12_課1_教學筆記本.ipynb`](./m12-crew-starter/M12_課1_教學筆記本.ipynb),**從上往下一格一格按 ▶**。
 3. 還沒設金鑰也能跑、能學;設好金鑰(見下方)重跑那一格,就會看到真的 AI 三角色輸出。
 
-> 🛟 筆記本第一格就卡(要你裝 ipykernel)?看 [`如何跑筆記本.md`](./如何跑筆記本.md) — 一行終端機指令解決,別跟 `.venv` 較勁。
+> 🛟 筆記本第一格就卡(要你裝 ipykernel)?看 [`如何跑筆記本.md`](./如何跑筆記本.md) — 終端機跑 `bash setup.sh`(一行解決 externally-managed 卡關)。
 
 > M13 做網站時,你會在同一個環境 `cd m13-astro-blog && npm install && npm run dev` —— 親手**打開一個前端專案**。
 

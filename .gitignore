@@ -12,3 +12,5 @@ __pycache__/
 shop-showcase/data.js
 
 m14-auto-ops-starter/approval_queue.json
+
+.venv-course/
