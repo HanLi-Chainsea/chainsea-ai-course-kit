@@ -165,7 +165,7 @@ applyMode();
 const loader=new GLTFLoader(); const load=u=>new Promise(r=>loader.load(u,r));
 const mixers=[],agents=[],customers=[]; let foxGLTF,duckGLTF,robotAnims;
 const AGENT_DEF=[{m12:"資料檢查員",m14:"監控員",color:"#2f6fd0",x:-4.4},{m12:"分析洞察員",m14:"處置員",color:"#e2570d",x:-2.2},{m12:"決策摘要員",m14:"把關員",color:"#0e9b63",x:0.0}];
-let ready=false, pipeStage=0, pipeT=0.8;
+let ready=false, m12i=0, m12T=0.5, orb=null;
 function clipAct(mx,anims,name){const c=THREE.AnimationClip.findByName(anims,name); return c?mx.clipAction(c):null;}
 function setAgentAnim(a,name,once=false){ if(a.cur===name)return; const nx=a.acts[name]; if(!nx)return;
   if(a.curAct)a.curAct.fadeOut(0.2); nx.reset(); nx.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat); nx.clampWhenFinished=once; nx.fadeIn(0.2).play(); a.curAct=nx; a.cur=name; }
@@ -193,12 +193,20 @@ function spawnCustomer(){ const useFox=Math.random()<0.6; const src=useFox?foxGL
 function speak(a,text,life=2.4){ a.bub.material.map=bubbleTex(text); a.bub.material.needsUpdate=true; a.bub.material.opacity=1; a._bubLife=life; setAgentAnim(a,'Wave',true); }
 function addCoins(n,base){ for(let k=0;k<n;k++) setTimeout(()=>{revenue+=base+(Math.random()*18|0); revLabel.textContent='$'+revenue.toLocaleString(); coinAt((Math.random()-0.5)*2,2.0);},k*150); }
 
-// M12:三角色接力給建議
-function stepM12(dt){ pipeT-=dt; if(pipeT>0)return; const a=agents[pipeStage];
-  if(pipeStage===0){const t=D.anomalies[anomI++%D.anomalies.length]; vAnom.textContent=t; setActive('anom'); speak(a,"抓到:"+t);}
-  if(pipeStage===1){vInsight.textContent=D.insight; setActive('insight'); speak(a,D.insight);}
-  if(pipeStage===2){const t=D.action_items[actI++%D.action_items.length]; vAction.textContent=t; setActive('action'); speak(a,"建議:"+t); addCoins(3,28);}
-  pipeStage=(pipeStage+1)%3; pipeT=1.7;
+// M12:資料光球一棒一棒傳(檢查 → 分析 → 決策)
+function orbPos(i){const a=agents[i];return new THREE.Vector3(a.g.position.x,1.7,a.g.position.z+0.2);}
+function stepM12(dt){
+  if(!orb){orb=new THREE.Mesh(new THREE.SphereGeometry(0.16,18,18),new THREE.MeshStandardMaterial({color:'#ffe08a',emissive:'#ffb020',emissiveIntensity:1.0})); orb.position.copy(orbPos(0)); scene.add(orb);}
+  orb.rotation.y+=dt*3; orb.position.y=1.7+Math.sin(performance.now()*0.004)*0.06;
+  if(m12i===1)orb.position.lerp(orbPos(1),Math.min(1,dt*6));   // 檢查→分析 傳遞中
+  if(m12i===3)orb.position.lerp(orbPos(2),Math.min(1,dt*6));   // 分析→決策 傳遞中
+  if(m12i===5)orb.position.lerp(orbPos(0),Math.min(1,dt*6));   // 回到檢查,準備下一輪
+  m12T-=dt; if(m12T>0)return;
+  if(m12i===0){const t=D.anomalies[anomI++%D.anomalies.length]; vAnom.textContent=t; setActive('anom'); speak(agents[0],"抓到:"+t); orb.position.copy(orbPos(0)); m12T=1.6;}
+  else if(m12i===2){vInsight.textContent=D.insight; setActive('insight'); speak(agents[1],D.insight); m12T=1.6;}
+  else if(m12i===4){const t=D.action_items[actI++%D.action_items.length]; vAction.textContent=t; setActive('action'); speak(agents[2],"建議:"+t); addCoins(3,28); m12T=1.6;}
+  else { m12T=0.55; }  // 傳遞 step(1/3/5):給光球移動的時間
+  m12i=(m12i+1)%6;
 }
 
 // M14:監控偵測 → 處置員自己動手(低風險) / 把關員升級給人(高風險)
@@ -244,6 +252,7 @@ function tick(){ const dt=Math.min(clock.getDelta(),0.05),tt=clock.elapsedTime;
   agents.forEach(ag=>{ if(ag._bubLife>0){ag._bubLife-=dt; ag.bub.material.opacity=Math.min(1,ag._bubLife); if(ag._bubLife<=0&&ag.state==='idle')setAgentAnim(ag,'Idle');} else ag.bub.material.opacity=0;
     ag.bub.position.set(ag.g.position.x,3.3+Math.sin(tt*2)*0.05,ag.g.position.z); ag.lab.position.x=ag.g.position.x; ag.lab.position.z=ag.g.position.z; });
   if(ready){ if(MODE==='m12')stepM12(dt); else stepM14(dt); }
+  if(orb)orb.visible=(MODE==='m12');
   for(let i=restock.length-1;i>=0;i--){const o=restock[i]; o.t+=dt; o.c.scale.setScalar(Math.min(1,o.t*3)); if(o.t>4){o.c.scale.multiplyScalar(0.92); if(o.c.scale.x<0.05){scene.remove(o.c);restock.splice(i,1);}}}
   if(alertSprite&&alertSprite.material.opacity>0) alertSprite.position.y=5.0+Math.sin(tt*3)*0.08;
   spawnCustomer._t=(spawnCustomer._t||0)-dt; if(spawnCustomer._t<=0&&customers.length<6&&ready){spawnCustomer(); spawnCustomer._t=1.6*(0.7+Math.random());}
